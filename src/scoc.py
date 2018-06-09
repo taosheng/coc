@@ -44,7 +44,7 @@ def uploadImageToS3(url, imageId):
         f = data.read()
         bArray = bytearray(f)
 
-    obj.put(Body = bArray)
+    obj.put(Body = bArray, ContentType='image/jpeg')
 
     obj.Acl().put(ACL='public-read')
 
@@ -59,7 +59,7 @@ def itemPageHandler(purl):
     productList = pageDomRoot.xpath("//tbody/tr")
     productImageUrl = pageDomRoot.xpath("//img[@itemprop='image']/@src")[0]
     print(productImageUrl)
-    uploadImageToS3(productImageUrl,'test1.jpg')
+    uploadImageToS3(productImageUrl,'test2.jpg')
     for product in productList :
         print("=====")
         storeUrl = product.xpath(".//a/@data-href")[0]
