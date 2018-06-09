@@ -6,8 +6,10 @@ from requests_aws4auth import AWS4Auth
 from datetime import datetime
 from lxml import etree, html  
 import requests
+import time
 import sys
 import csv
+import uuid
 import boto3
 import argparse
 import json
@@ -31,9 +33,10 @@ s3 = boto3.resource('s3')
 bucket = s3.Bucket('scoc')
 
 def createIndex(indexname):
+    print(indexname)
     if not es.indices.exists(index=indexname):
         es.indices.create(index=indexname)
-        es.indices.refresh(index=indexname)
+        #es.indices.refresh(index=indexname)
 
 def uploadImageToS3(url, imageId):
     r = requests.get(url, stream=True)
@@ -54,29 +57,58 @@ def uploadImageToS3(url, imageId):
 def itemPageHandler(purl):
     res = requests.get(purl)
     res.encoding = 'utf8' 
+    print('--- a product in a store ---')
+    print(purl)
     pageDomRoot = etree.fromstring(res.content, etree.HTMLParser())  
     productName = pageDomRoot.xpath("//*[@id='product-name']/text()")[0].strip()
     productList = pageDomRoot.xpath("//tbody/tr")
     productImageUrl = pageDomRoot.xpath("//img[@itemprop='image']/@src")[0]
     print(productImageUrl)
-    uploadImageToS3(productImageUrl,'test2.jpg')
+    fname = str(uuid.uuid4().int)+'.jpg'
+    uploadImageToS3(productImageUrl,fname)
     for product in productList :
         print("=====")
         storeUrl = product.xpath(".//a/@data-href")[0]
-        price = ''
+        store = storeUrl.split("//")[1].split("/")[0]
+        createIndex(store)
+        price = None 
         for p in product.xpath(".//strong/text()"):
             if p[0] == '$':
-                price = p
+                price = int(p.replace("$","").replace(",",""))
                 break
         print(storeUrl)
         print(price)
         
+        itemDoc = { 'product_name':productName , 'image':fname , 'storeUrl':storeUrl , 'price':price}
+        print(itemDoc)
+        res = es.index(index=store, doc_type='product',  body=itemDoc)
     
 
 
+def fromListToPage(lurl):
+    res = requests.get(lurl)
+    res.encoding = 'utf8' 
+    pageDomRoot = etree.fromstring(res.content, etree.HTMLParser())  
+    pages= pageDomRoot.xpath("//h4/a/@href")
+    for p in pages:
+        furl = 'https://biggo.com.tw'+p
+        print(furl)
+        itemPageHandler(furl)
+        time.sleep(2)
+        
+
 if __name__ == '__main__' :
     url = sys.argv[1]
-    itemPageHandler(url)
+#    itemPageHandler(url)
+    try:
+        for i in range(44):
+            print(url+str(i))
+            fromListToPage(url+str(i))
+    except:
+        print("Unexpected error:" +  sys.exc_info()[0])
+#    print(dir(es.indices))
+#    a= es.indices.exists(index="pchome.com.twxx")
+#    print(a)
 
 
 
