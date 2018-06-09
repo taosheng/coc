@@ -8,6 +8,7 @@ from lxml import etree, html
 import requests
 import sys
 import csv
+import boto3
 import argparse
 import json
 from awsconfig import ESHOST, REGION
@@ -26,13 +27,30 @@ es = Elasticsearch(
     verify_certs=True,
     connection_class=RequestsHttpConnection
 )
+s3 = boto3.resource('s3')
+bucket = s3.Bucket('scoc')
 
 def createIndex(indexname):
     if not es.indices.exists(index=indexname):
         es.indices.create(index=indexname)
         es.indices.refresh(index=indexname)
 
-#TODO
+def uploadImageToS3(url, imageId):
+    r = requests.get(url, stream=True)
+    obj = bucket.Object(imageId)
+    bArray = None
+
+    with r.raw as data:
+        f = data.read()
+        bArray = bytearray(f)
+
+    obj.put(Body = bArray)
+
+    obj.Acl().put(ACL='public-read')
+
+
+
+#TODO:not possible to abstract it?
 def itemPageHandler(purl):
     res = requests.get(purl)
     res.encoding = 'utf8' 
@@ -41,6 +59,7 @@ def itemPageHandler(purl):
     productList = pageDomRoot.xpath("//tbody/tr")
     productImageUrl = pageDomRoot.xpath("//img[@itemprop='image']/@src")[0]
     print(productImageUrl)
+    uploadImageToS3(productImageUrl,'test1.jpg')
     for product in productList :
         print("=====")
         storeUrl = product.xpath(".//a/@data-href")[0]
