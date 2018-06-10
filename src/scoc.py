@@ -6,6 +6,7 @@ from requests_aws4auth import AWS4Auth
 from datetime import datetime
 from lxml import etree, html  
 import requests
+import random
 import time
 import sys
 import csv
@@ -94,7 +95,7 @@ def fromListToPage(lurl):
         furl = 'https://biggo.com.tw'+p
         print(furl)
         itemPageHandler(furl)
-        time.sleep(2)
+        time.sleep(random.randint(3,13))
         
 
 if __name__ == '__main__' :
@@ -105,7 +106,7 @@ if __name__ == '__main__' :
             print(url+str(i))
             fromListToPage(url+str(i))
     except:
-        print("Unexpected error:" +  sys.exc_info()[0])
+        print("Unexpected error:"+url+str(i))
 #    print(dir(es.indices))
 #    a= es.indices.exists(index="pchome.com.twxx")
 #    print(a)
