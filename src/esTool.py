@@ -51,14 +51,30 @@ def listAllIndice():
     for index in es.indices.get('*'):
         print(index)
 
-def listAll(indexname, query=""):
+def matchAll(indexname, query="", field=""):
+    q ={
+        "query":{
+
+          "match_phrase": {
+            field: query
+          }
+
+        }
+    }
+    res = es.search(index=indexname, body=q)
+#print(res)
+    print("Got %d Hits:" % res['hits']['total'])
+    for h in res['hits']['hits']:
+        print(h['_id']+ " "+ str(h['_source'])+ " "+str(h['_score']))
+
+def listAll(indexname, query="", field=""):
 
     q = {
         "min_score": 0.3,
         "query" :{
           "multi_match" : {
               "query": query,
-              "fields": [ "pkey", "similar","res" ,'uid']
+              "fields": [ field]
           } 
       },
          "size": 5000
@@ -79,6 +95,8 @@ if __name__ == '__main__':
     parser.add_argument('--rebuild','-r',action='store_true', help='rebuild index via upload a json file')
     parser.add_argument('--indexname','-i', help='index name')
     parser.add_argument('--query','-q', help='query string')
+    parser.add_argument('--field','-f', help='query target field')
+    parser.add_argument('--match','-m', action="store_true",help='exact match')
     parser.add_argument('--jsondump','-j', help='jsondump file name, one line per json doc')
     parser.add_argument('--delete','-d', action='store_true', help='to delete document')
     parser.add_argument('--docid','-c', help='document _id')
@@ -92,8 +110,11 @@ if __name__ == '__main__':
         delete(args.indexname, args.docid)
 
     if args.list :
-        print('list all')
-        listAll(args.indexname, args.query)
+        print('query ...')
+        if args.match:
+            matchAll(args.indexname, args.query, args.field)
+        else:
+            listAll(args.indexname, args.query, args.field)
         exit(0)
 
     if args.rebuild:
