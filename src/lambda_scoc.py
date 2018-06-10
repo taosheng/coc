@@ -29,6 +29,7 @@ def lambda_scochandler(even, context):
 # {  'q': <product name>, 'store' : <specified store url>
 #  }
 #
+    print(even)
 
     q = even['q']
     from storeList import stores
