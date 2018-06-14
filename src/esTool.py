@@ -50,6 +50,7 @@ def deleteIndice(index):
 def listAllIndice():
     for index in es.indices.get('*'):
         print(index)
+        print(es.count(index=index))
 
 def matchAll(indexname, query="", field=""):
     q ={
