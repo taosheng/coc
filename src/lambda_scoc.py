@@ -23,15 +23,8 @@ es = Elasticsearch(
     connection_class=RequestsHttpConnection
 )
 
+def searchProduct(queryString):
 
-def lambda_scochandler(even, context):
-# even structure
-# {  'q': <product name>, 'store' : <specified store url>
-#  }
-#
-    print(even)
-
-    q = even['q']
     from storeList import stores
     store = ''
    # field = even['field']
@@ -44,10 +37,10 @@ def lambda_scochandler(even, context):
 
     q = {
       "min_score": min_score,
-      "size" : 50,
+      "size" : 33,
       "query" :{
       "multi_match" : {
-        "query": q,
+        "query": queryString,
         "fields": ['product_name']
       }
       }
@@ -66,6 +59,16 @@ def lambda_scochandler(even, context):
             result.append(anItem)
     return result
 
+def lambda_scochandler(even, context):
+# even structure
+# {  'q': <product name>, 'store' : <specified store url>
+#  }
+#
+    print(even)
+
+    q = even['q']
+
+    return searchProduct(q)
 
 if __name__ == '__main__':
 
