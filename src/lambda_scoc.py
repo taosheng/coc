@@ -77,7 +77,7 @@ def lambda_scoclinehandler(even, context):
     queryString  = ''
 
     for wordtype in intent['oriCut']:
-        if wordtype[0] in  ['v','r','a','uj'] :
+        if wordtype[0] in  ['v','r','a','uj','zg'] :
             continue
         if wordtype[1] in ['產品','商品','網路','商店','比價','便宜']:
             continue
