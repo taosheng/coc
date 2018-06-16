@@ -39,6 +39,31 @@ def createIndex(indexname):
         es.indices.create(index=indexname)
         #es.indices.refresh(index=indexname)
 
+def isExist(url):
+    q = {
+      "size" : 3,
+      "query" :{
+        "match_phrase": {
+            "storeUrl": url
+          }
+      }
+    }
+
+    res = es.search(body=q)
+
+    matchNo = len(res['hits']['hits'])
+    #print(url)
+    #print(matchNo)
+    if matchNo == 0:
+        return False
+
+    for h in res['hits']['hits']:
+        anItem = h['_source']
+        if anItem['storeUrl'] == url.strip() :
+            return True
+        
+    return False
+
 def uploadImageToS3(url, imageId):
     r = requests.get(url, stream=True)
     obj = bucket.Object(imageId)
@@ -54,6 +79,47 @@ def uploadImageToS3(url, imageId):
 
 def insertES(store, itemDoc):
     res = es.index(index=store, doc_type='product',  body=itemDoc)
+
+
+def ezItemPageHandler(purl):
+    res = requests.get(purl)
+    res.encoding = 'utf-8'
+    print(purl)
+    pageDomRoot = etree.fromstring(res.content, etree.HTMLParser())
+    productName = pageDomRoot.xpath("//h1[@class='product-name']/text()")[0].strip()
+    productList = pageDomRoot.xpath("//li")
+    print(productName)
+
+    for product in productList :
+        storeUrl = product.xpath(".//a[@target]/@href")
+        if len(storeUrl) == 0 :
+            continue
+        storeUrl =storeUrl[0]
+        if storeUrl.count("//") == 0:
+            continue
+        print("=====")
+        print(storeUrl)
+        price = product.xpath(".//span[@class='item-price']/text()")
+        if len(price) == 0:
+            continue
+            price = 0
+        else:
+            price = int(price[0].replace(",","").replace("$",""))
+        store = storeUrl.split("//")[1].split("/")[0]
+        productImageUrl = pageDomRoot.xpath(".//a/span/img/@src")[0]
+        fname = str(uuid.uuid4().int)+'.jpg'
+        uploadImageToS3(productImageUrl,fname)
+        itemDoc = { 'product_name':productName , 'image':fname , 'storeUrl':storeUrl , 'price':price}
+        print(itemDoc)
+
+        if isExist(storeUrl):
+            print("to be ignore!!!!!!!!!")
+            continue 
+        else :
+            print("to be insert?")
+            insertES(store, itemDoc)
+            time.sleep(2)
+
 
 def feItemPageHandler(purl):
     res = requests.get(purl)
@@ -79,7 +145,13 @@ def feItemPageHandler(purl):
         itemDoc = { 'product_name':productName , 'image':fname , 'storeUrl':storeUrl , 'price':price}
         print(itemDoc)
 
-        insertES(store, itemDoc)
+        if isExist(storeUrl):
+            print("to be ignore")
+            continue 
+        else :
+            print("to be insert")
+            time.sleep(random.randint(1,3))
+       # insertES(store, itemDoc)
 
 
 #TODO:not possible to abstract it?
@@ -139,23 +211,26 @@ def fefromListToPage(lurl):
 
 if __name__ == '__main__' :
     parser = argparse.ArgumentParser(description='coc tool')
-    parser.add_argument('--target','-t', choices=['fe', 'bi'])
+    parser.add_argument('--target','-t', choices=['fe', 'bi','ez'])
     parser.add_argument('--pageUrl','-p', help='page contains list')
     parser.add_argument('--pages','-s', help='pagenumbers', type=int)
 
     args = parser.parse_args()
-    pageActionsDict = {'fe':fefromListToPage, 'bi':fromListToPage}
+    pageActionsDict = {'fe':fefromListToPage, 'bi':fromListToPage, 'ez':ezItemPageHandler}
 #    if args.target)
 #    url = sys.argv[1]
 #    fefromListToPage(url)
 #    feItemPageHandler(url)
 #    itemPageHandler(url)
+    pageActionsDict[args.target](args.pageUrl)
+    exit(0)
+
     try:
         for i in range(1,args.pages):
             print(args.pageUrl+str(i))
             pageActionsDict[args.target](args.pageUrl+str(i))
     except:
-        print("Unexpected error:"+url+str(i))
+        print("Unexpected error:"+args.pageUrl+str(i))
 
 
 #    print(dir(es.indices))
