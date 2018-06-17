@@ -47,10 +47,15 @@ def delete(indexname, docid):
 def deleteIndice(index):
     es.indices.delete(index=index)
 
-def listAllIndice():
+def listAllIndice(grep="."):
+    totaldocs = 0
     for index in es.indices.get('*'):
-        print(index)
-        print(es.count(index=index))
+        if grep not in index:
+            continue
+        numberDocs = es.count(index=index)['count']
+        totaldocs += numberDocs
+        print(index+" "+str(numberDocs))
+    print(totaldocs)
 
 def matchAll(indexname, query="", field=""):
     q ={
