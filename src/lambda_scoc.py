@@ -87,27 +87,65 @@ def lambda_scoclinehandler(even, context):
 
     esSearchResult = searchProduct(queryString)
     resMsg = ""
+    richContents = []
     tmpStoreList =[]
+   
+    richMsg = {
+      "type": "flex",
+      "altText": "product list",
+      "contents": {
+         "type": "bubble",
+         "body": {
+           "type": "box",
+          "layout": "vertical",
+          "contents": []
+         }
+       }
+    }
     for p in esSearchResult:
 #https://www.momomall.com.tw/s/102191/1021910000246/3000000000/
-        storeDN = p['storeUrl'].split("//")[1].split("/")[0]
+        storeDN = p['storeUrl'].split("//")[1].split("/")[0].replace("www.","").split(".")[0]
         if storeDN in tmpStoreList:
             continue
         tmpStoreList.append(storeDN)
-        tmpMsg = "價格{0}, {1}, 網址: {2} \n".format(p['price'], p['product_name'],p['storeUrl'])
-        resMsg = resMsg+tmpMsg
+        tmpDesc = {"type":"text", "text":"$"+str(p['price'])+","+p['product_name']}
+        tmpImg = { "type": "image", "url":"https://s3-us-west-2.amazonaws.com/scoc/"+p['image'] }
+        tmpButton = {
+         "type": "button",
+         "action": {
+              "type": "uri",
+              "label": "前往"+storeDN+"購買",
+              "uri": p['storeUrl']
+           },
+         "style": "primary",
+        }
+        richContents = []
+        richContents.append(tmpDesc)
+        richContents.append(tmpImg)
+        richContents.append(tmpButton)
+        richMsg['contents']['body']['contents'] = richContents
+        toLineResponse={'uid':uid, 'msg':'', 'richMsg':richMsg}
+        lresponse = lambda_client.invoke(
+             FunctionName='lineResponse',
+             InvocationType='Event',
+             LogType='None',
+             ClientContext='string',
+             Payload=json.dumps(toLineResponse),
+        )
+#        tmpMsg = "價格{0}, {1}, 網址: {2} \n".format(p['price'], p['product_name'],p['storeUrl'])
+        #resMsg = resMsg+tmpMsg
 
-    if resMsg == '':
+    if richContents == [] :
         resMsg = '目前找不到商品資訊:'+queryString
-    toLineResponse={'uid':uid, 'msg':resMsg}
+        toLineResponse={'uid':uid, 'msg':resMsg}
+        lresponse = lambda_client.invoke(
+             FunctionName='lineResponse',
+             InvocationType='Event',
+             LogType='None',
+             ClientContext='string',
+             Payload=json.dumps(toLineResponse),
+        )
 
-    lresponse = lambda_client.invoke(
-         FunctionName='lineResponse',
-         InvocationType='Event',
-         LogType='None',
-         ClientContext='string',
-         Payload=json.dumps(toLineResponse),
-    )
 
 
 
@@ -129,7 +167,7 @@ if __name__ == '__main__':
     #even = {'q':q }
     #even = {'q':q }
     intent = {'entities': ['商品電冰箱', '電冰箱', '我', '商品'], 'timings': [], 'oriCut': [['v', '幫'], ['r', '我'], ['v', '找'], ['n', '商品'], ['n', '電冰箱']], 'intent': '找', 'location': '', 'msg': '幫我找商品電冰箱'}
-    intent = {'timings': [], 'entities': ['便宜', '電視'], 'location': '', 'oriCut': [('v', '找'), ('a', '便宜'), ('uj', '的'), ('n', '電視')], 'intent': '找', 'msg': '找便宜的電視'}
+    intent = {'timings': [], 'entities': ['便宜', '顯示器'], 'location': '', 'oriCut': [ ('n', '艾倫比亞健康面膜')], 'intent': '找', 'msg': '找便宜的電視'}
     even = {'uid': 'Uc9b95e58acb9ab8d2948f8ac1ee48fad', 'callback': '', 'botid': '', 'msg': 'see intent ', 'intent': intent}
     r = lambda_scoclinehandler(even, None)
     #print("==== result ===")
