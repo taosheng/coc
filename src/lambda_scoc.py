@@ -27,7 +27,7 @@ es = Elasticsearch(
     connection_class=RequestsHttpConnection
 )
 
-def searchProduct(queryString):
+def searchProduct(queryString,minScore=1.7):
 
     queryString = queryString.strip()
     print(queryString)
@@ -35,7 +35,7 @@ def searchProduct(queryString):
     store = ''
    # field = even['field']
    # idx = even['index']
-    min_score = 1.7
+    min_score = minScore
     #if "score" in even:
     #    min_score = int(even['score'])
     #if "store" in even:
@@ -79,13 +79,23 @@ def lambda_scoclinehandler(even, context):
     for wordtype in intent['oriCut']:
         if wordtype[0] in  ['v','r','a','uj','zg'] :
             continue
-        if wordtype[1] in ['產品','商品','網路','商店','比價','便宜']:
+        if wordtype[1] in ['產品','商品','網路','商店','比價','便宜','查詢']:
             continue
         queryString = queryString+" "+wordtype[1]
 
     uid = even['uid']
 
     esSearchResult = searchProduct(queryString)
+    if len(esSearchResult)  == 0:
+    #try to find twice by simple cut words and lower down score
+        print("do second search")
+        secondQueryString = intent['msg']
+        toIgnore = ['找便宜','便宜','商品比價','幫我比價','商品查詢','請幫我比價','找商品','網路商品','的']
+        for ti in toIgnore:
+            secondQueryString = secondQueryString.replace(ti, '')
+        queryString = secondQueryString
+        esSearchResult = searchProduct(queryString, minScore=1.3)
+
     resMsg = ""
     richContents = []
     tmpStoreList =[]
@@ -93,23 +103,23 @@ def lambda_scoclinehandler(even, context):
     richMsg = {
       "type": "flex",
       "altText": "product list",
-      "contents": {
-         "type": "bubble",
-         "body": {
-           "type": "box",
-          "layout": "vertical",
-          "contents": []
+      "contents":
+         { "type": "carousel",
+           "contents": [] ,
          }
-       }
+
+      
+       
     }
+
+
     for p in esSearchResult:
-#https://www.momomall.com.tw/s/102191/1021910000246/3000000000/
         storeDN = p['storeUrl'].split("//")[1].split("/")[0].replace("www.","").split(".")[0]
         if storeDN in tmpStoreList:
             continue
         tmpStoreList.append(storeDN)
         tmpDesc = {"type":"text", "text":"$"+str(p['price'])+","+p['product_name']}
-        tmpImg = { "type": "image", "url":"https://s3-us-west-2.amazonaws.com/scoc/"+p['image'] }
+        tmpImgUrl = "https://s3-us-west-2.amazonaws.com/scoc/"+p['image'] 
         tmpButton = {
          "type": "button",
          "action": {
@@ -119,23 +129,28 @@ def lambda_scoclinehandler(even, context):
            },
          "style": "primary",
         }
-        richContents = []
-        richContents.append(tmpDesc)
-        richContents.append(tmpImg)
-        richContents.append(tmpButton)
-        richMsg['contents']['body']['contents'] = richContents
-        toLineResponse={'uid':uid, 'msg':'', 'richMsg':richMsg}
-        lresponse = lambda_client.invoke(
-             FunctionName='lineResponse',
-             InvocationType='Event',
-             LogType='None',
-             ClientContext='string',
-             Payload=json.dumps(toLineResponse),
-        )
+        itemBubble = {
+          "type": "bubble",
+          "hero": {
+            "type": "image",
+            "size": "full",
+            "aspectRatio": "20:13",
+            "aspectMode": "cover",
+            "url": tmpImgUrl
+            },
+          "body": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "sm",
+            "contents": [tmpDesc, tmpButton]
+          },
+        }
+        richMsg['contents']['contents'].append(itemBubble)
+
 #        tmpMsg = "價格{0}, {1}, 網址: {2} \n".format(p['price'], p['product_name'],p['storeUrl'])
         #resMsg = resMsg+tmpMsg
 
-    if richContents == [] :
+    if richMsg['contents']['contents']  == [] :
         resMsg = '目前找不到商品資訊:'+queryString
         toLineResponse={'uid':uid, 'msg':resMsg}
         lresponse = lambda_client.invoke(
@@ -144,6 +159,16 @@ def lambda_scoclinehandler(even, context):
              LogType='None',
              ClientContext='string',
              Payload=json.dumps(toLineResponse),
+        )
+    else:
+        toLineResponse={'uid':uid, 'msg':'', 'richMsg':richMsg}
+        #print(toLineResponse)
+        lresponse = lambda_client.invoke(
+         FunctionName='lineResponse',
+         InvocationType='Event',
+         LogType='None',
+         ClientContext='string',
+         Payload=json.dumps(toLineResponse),
         )
 
 
@@ -167,7 +192,7 @@ if __name__ == '__main__':
     #even = {'q':q }
     #even = {'q':q }
     intent = {'entities': ['商品電冰箱', '電冰箱', '我', '商品'], 'timings': [], 'oriCut': [['v', '幫'], ['r', '我'], ['v', '找'], ['n', '商品'], ['n', '電冰箱']], 'intent': '找', 'location': '', 'msg': '幫我找商品電冰箱'}
-    intent = {'timings': [], 'entities': ['便宜', '顯示器'], 'location': '', 'oriCut': [ ('n', '艾倫比亞健康面膜')], 'intent': '找', 'msg': '找便宜的電視'}
+    intent = {'timings': [], 'entities': ['便宜', '顯示器'], 'location': '', 'oriCut': [ ('n', '艾倫比亞健康面膜')], 'intent': '找', 'msg': '找便宜的4K電視'}
     even = {'uid': 'Uc9b95e58acb9ab8d2948f8ac1ee48fad', 'callback': '', 'botid': '', 'msg': 'see intent ', 'intent': intent}
     r = lambda_scoclinehandler(even, None)
     #print("==== result ===")
