@@ -6,6 +6,7 @@ from __future__ import print_function
 import random
 import boto3
 import json
+import urllib.parse
 from elasticsearch import Elasticsearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 from awsconfig import ESHOST, REGION
@@ -120,13 +121,17 @@ def lambda_scoclinehandler(even, context):
         tmpStoreList.append(storeDN)
         tmpDesc = {"type":"text", "text":"$"+str(p['price'])+","+p['product_name']}
         tmpImgUrl = "https://s3-us-west-2.amazonaws.com/scoc/"+p['image'] 
+        tmpStoreUrl = p['storeUrl'].replace('http://','').replace('https://','')
         tmpButton = {
          "type": "button",
          "action": {
               "type": "uri",
               "label": "前往"+storeDN+"購買",
-              "uri": p['storeUrl']
+              "uri": 'https://'+urllib.parse.quote(tmpStoreUrl)
+              #"uri": urllib.parse.quote(p['storeUrl'])
+              #"uri": p['storeUrl']
            },
+          
          "style": "primary",
         }
         itemBubble = {
@@ -192,7 +197,7 @@ if __name__ == '__main__':
     #even = {'q':q }
     #even = {'q':q }
     intent = {'entities': ['商品電冰箱', '電冰箱', '我', '商品'], 'timings': [], 'oriCut': [['v', '幫'], ['r', '我'], ['v', '找'], ['n', '商品'], ['n', '電冰箱']], 'intent': '找', 'location': '', 'msg': '幫我找商品電冰箱'}
-    intent = {'timings': [], 'entities': ['便宜', '顯示器'], 'location': '', 'oriCut': [ ('n', '艾倫比亞健康面膜')], 'intent': '找', 'msg': '找便宜的4K電視'}
+    intent = {'timings': [], 'entities': ['便宜', '顯示器'], 'location': '', 'oriCut': [ ('n', '艾倫比亞健康面膜')], 'intent': '找', 'msg': '找便宜dyson吸塵器'}
     even = {'uid': 'Uc9b95e58acb9ab8d2948f8ac1ee48fad', 'callback': '', 'botid': '', 'msg': 'see intent ', 'intent': intent}
     r = lambda_scoclinehandler(even, None)
     #print("==== result ===")
