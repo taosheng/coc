@@ -47,8 +47,8 @@ class IDPricePriceSpider(scrapy.Spider):
                 itemPrice = item.xpath('.//p[@class="itmPrice_price"]/text()')
                 if len(itemUrl) == 0:
                     continue 
-                itemUrl = unquote(unquote(itemUrl[0].extract())).split("url=")[-1].split("?")[0]
-                itemShop = item.xpath('.//a[@class="itmShop_link"]/@alt')
+                itemUrl = unquote(unquote(itemUrl[0].extract())).split("url=")[-1].split("?")[0].split("&hash")[0]
+                itemShop = item.xpath('.//a[@class="itmShop_link"]/img/@alt')[0].extract()
                 self.log("product link ======================")
                 self.log(itemUrl)
                 self.log("product price ======================")
