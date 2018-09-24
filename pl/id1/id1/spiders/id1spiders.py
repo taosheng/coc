@@ -1,12 +1,25 @@
 
 import scrapy
+import time
 from urllib.parse import unquote
+from elasticsearch import Elasticsearch, RequestsHttpConnection
+
+
+#host = 'search-tsai-t5aqxu4dppacep22fq5b4uvj6m.us-east-1.es.amazonaws.com'
+
+
+es = Elasticsearch()
+
+def insert(indexname, toInsert):
+    res = es.index(index=indexname, doc_type='product',  body=toInsert)
+    print(res)
+    es.indices.refresh(index=indexname) 
 
 
 class IDPricePriceSpider(scrapy.Spider):
     name = "IDPricePrice"
 
-    limit =  120
+    limit =  12000000
     BASE_URL = 'http://id.priceprice.com'
 
     def start_requests(self):
@@ -27,14 +40,17 @@ class IDPricePriceSpider(scrapy.Spider):
         
         product = response.xpath('//div[@itemtype="http://schema.org/Product"]')
         keywords = response.xpath('/html/head/meta[@name="keywords"]/@content')[0].extract().split(",")
+        imgUrl = response.xpath('/html/head/meta[@property="og:image"]/@content')[0].extract()
         itemName = response.xpath('//div[@class="itemSumName"]/div/h2[1]/text()').extract()
         rating = response.xpath('//div[@itemprop="aggregateRating"]/meta[@itemprop="ratingValue"]/@content').extract()
         
+        currency = response.xpath('//meta[@itemprop="priceCurrency"]/@content').extract() 
         self.log("product schema should be only 1..it is now="+str(len(product)) )
         self.log("keywords...======== "+str(keywords))
         self.log("itemName...======== "+str(itemName))
         self.log("rating...======== "+str(rating))
-
+        self.log("currency...======== "+str(currency))
+        time.sleep(1)
         if len(product) > 0:
             self.log(product)        
             pname = product[0].xpath('./h1').extract()
@@ -52,13 +68,15 @@ class IDPricePriceSpider(scrapy.Spider):
                 self.log("product link ======================")
                 self.log(itemUrl)
                 self.log("product price ======================")
-                itemPrice = itemPrice[0].extract()
+                itemPrice = itemPrice[0].extract().replace("\n","").replace("Rp","") 
                 self.log(itemPrice)
             
                 oneItem = {'name':itemName[0],
                            'price':itemPrice,
+                           'currency': currency,
                            'shop':itemShop,
                            'url':itemUrl,
+                           'imgUrl':imgUrl,
                            'keywords':keywords,
                            'rating':rating
  
@@ -80,4 +98,6 @@ class IDPricePriceSpider(scrapy.Spider):
     def insertItem(self, oneItem):
         print(oneItem)
         self.log("===== in insert ====")
-        self.log(ontItem)
+        insert("product",oneItem) 
+        self.log("===== done insert ====")
+        self.log(oneItem)
